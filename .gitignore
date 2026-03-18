@@ -1,0 +1,16 @@
+# Build output
+bin/
+obj/
+
+# IDE/editor
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Test output
+TestResults/
+playwright-report/
+
+# OS files
+.DS_Store
