@@ -29,6 +29,7 @@ public class LoginPage
     public async Task ClickLoginButtonAsync()
     {
         await _page.ClickAsync("button[type='submit']");
+        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
 
     public async Task<string> GetFlashMessageAsync()
