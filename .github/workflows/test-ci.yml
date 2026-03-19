@@ -29,14 +29,13 @@ jobs:
           dotnet restore
           dotnet tool restore
 
-      - name: Install Playwright browsers
-        run: |
-          cd ReqnrollLogin.Tests
-          pwsh bin/${{ env.CONFIGURATION }}/net9.0/playwright.ps1 install
-          cd ..
-
       - name: Build solution
         run: dotnet build -c ${{ env.CONFIGURATION }} --no-restore
+
+      - name: Install Playwright browsers
+        run: |
+          dotnet tool install -g Microsoft.Playwright.CLI || dotnet tool update -g Microsoft.Playwright.CLI
+          playwright install chromium
 
       - name: Run tests
         run: dotnet test -c ${{ env.CONFIGURATION }} --no-build --logger "trx;LogFileName=test-results.trx" --verbosity normal
@@ -154,14 +153,13 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
-      - name: Install Playwright browsers
-        run: |
-          cd ReqnrollLogin.Tests
-          pwsh bin/${{ env.CONFIGURATION }}/net9.0/playwright.ps1 install
-          cd ..
-
       - name: Build solution
         run: dotnet build -c ${{ env.CONFIGURATION }} --no-restore
+
+      - name: Install Playwright browsers
+        run: |
+          dotnet tool install -g Microsoft.Playwright.CLI || dotnet tool update -g Microsoft.Playwright.CLI
+          playwright install chromium
 
       - name: Run tests
         run: dotnet test -c ${{ env.CONFIGURATION }} --no-build --verbosity normal
@@ -208,14 +206,13 @@ jobs:
           dotnet restore
           dotnet tool restore
 
-      - name: Install Playwright browsers
-        run: |
-          cd ReqnrollLogin.Tests
-          pwsh bin/${{ env.CONFIGURATION }}/net9.0/playwright.ps1 install
-          cd ..
-
       - name: Build solution
         run: dotnet build -c ${{ env.CONFIGURATION }} --no-restore
+
+      - name: Install Playwright browsers
+        run: |
+          dotnet tool install -g Microsoft.Playwright.CLI || dotnet tool update -g Microsoft.Playwright.CLI
+          playwright install chromium
 
       - name: Run tests with coverage
         run: dotnet test -c ${{ env.CONFIGURATION }} --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=./coverage.cobertura.xml
