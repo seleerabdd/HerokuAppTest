@@ -41,6 +41,30 @@ From the solution folder:
 dotnet test
 ```
 
+## Allure reporting
+
+Allure is enabled via the `Allure.Reqnroll` package in the test project.
+
+1. Run tests:
+
+```powershell
+dotnet test
+```
+
+2. Install the Allure CLI (one-time):
+
+```bash
+brew install allure
+```
+
+3. Generate and open the report (from solution root):
+
+```bash
+allure serve ReqnrollLogin.Tests/bin/Debug/net9.0/allure-results
+```
+
+If you run tests in a different configuration/framework, point `allure serve` at that run's `allure-results` directory.
+
 ## Run headless
 
 ```powershell

@@ -18,6 +18,9 @@ public class HomePage
 
     public async Task NavigateByLinkTextAsync(string linkText)
     {
-        await _page.Locator($"text={linkText}").ClickAsync();
+        // Use role-based selector for more stable and semantic matching
+        // Exact: true ensures we match the exact link text, not partial matches
+        var link = _page.GetByRole(AriaRole.Link, new() { NameString = linkText, Exact = true });
+        await link.ClickAsync();
     }
 }
