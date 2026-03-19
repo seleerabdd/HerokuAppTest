@@ -10,6 +10,12 @@ env:
   DOTNET_VERSION: '9.0.x'
   CONFIGURATION: Debug
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  statuses: write
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
