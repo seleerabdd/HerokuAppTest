@@ -1,0 +1,231 @@
+name: Test CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  CONFIGURATION: Debug
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    name: Build and Run Tests
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: |
+          dotnet restore
+          dotnet tool restore
+
+      - name: Install Playwright browsers
+        run: |
+          cd ReqnrollLogin.Tests
+          pwsh bin/${{ env.CONFIGURATION }}/net9.0/playwright.ps1 install
+          cd ..
+
+      - name: Build solution
+        run: dotnet build -c ${{ env.CONFIGURATION }} --no-restore
+
+      - name: Run tests
+        run: dotnet test -c ${{ env.CONFIGURATION }} --no-build --logger "trx;LogFileName=test-results.trx" --verbosity normal
+        env:
+          HEADLESS: true
+
+      - name: Install Allure CLI
+        if: always()
+        run: |
+          sudo npm install -g allure-commandline
+
+      - name: Generate Allure Report
+        if: always()
+        run: |
+          allure generate \
+            ReqnrollLogin.Tests/bin/${{ env.CONFIGURATION }}/net9.0/allure-results \
+            -o allure-report \
+            --clean
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-trx
+          path: |
+            **/test-results.trx
+          retention-days: 30
+
+      - name: Upload Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-json
+          path: ReqnrollLogin.Tests/bin/${{ env.CONFIGURATION }}/net9.0/allure-results/
+          retention-days: 30
+
+      - name: Upload Allure report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report-html
+          path: allure-report/
+          retention-days: 30
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-diagnostics
+          path: ReqnrollLogin.Tests/bin/${{ env.CONFIGURATION }}/net9.0/failure-diagnostics/
+          retention-days: 30
+
+      - name: Publish test results to GitHub
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: '**/test-results.trx'
+          check_name: Test Results
+          comment_title: Test Execution Summary
+
+      - name: Comment PR with test summary
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const testResultsPath = 'ReqnrollLogin.Tests/bin/Debug/net9.0/test-results.trx';
+            
+            if (fs.existsSync(testResultsPath)) {
+              const xml = fs.readFileSync(testResultsPath, 'utf8');
+              const totalMatch = xml.match(/total="(\d+)"/);
+              const passedMatch = xml.match(/passed="(\d+)"/);
+              const failedMatch = xml.match(/failed="(\d+)"/);
+              
+              const total = totalMatch ? totalMatch[1] : '?';
+              const passed = passedMatch ? passedMatch[1] : '?';
+              const failed = failedMatch ? failedMatch[1] : '?';
+              
+              const comment = `## Test Results Summary
+              
+              | Metric | Value |
+              |--------|-------|
+              | Total Tests | ${total} |
+              | ✅ Passed | ${passed} |
+              | ❌ Failed | ${failed} |
+              
+              📊 **Allure Report** available in artifacts: \`allure-report-html\`
+              `;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+
+  test-matrix:
+    runs-on: ${{ matrix.os }}
+    name: Test on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Install Playwright browsers
+        run: |
+          cd ReqnrollLogin.Tests
+          pwsh bin/${{ env.CONFIGURATION }}/net9.0/playwright.ps1 install
+          cd ..
+
+      - name: Build solution
+        run: dotnet build -c ${{ env.CONFIGURATION }} --no-restore
+
+      - name: Run tests
+        run: dotnet test -c ${{ env.CONFIGURATION }} --no-build --verbosity normal
+        env:
+          HEADLESS: true
+
+  code-quality:
+    runs-on: ubuntu-latest
+    name: Code Quality Checks
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build -c ${{ env.CONFIGURATION }} --no-restore /p:TreatWarningsAsErrors=true
+
+      - name: Run analyzers
+        run: dotnet build -c ${{ env.CONFIGURATION }} --no-restore /p:EnableNETAnalyzers=true /p:AnalysisTreatWarningsAsErrors=true
+
+  test-coverage:
+    runs-on: ubuntu-latest
+    name: Code Coverage Analysis
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: |
+          dotnet restore
+          dotnet tool restore
+
+      - name: Install Playwright browsers
+        run: |
+          cd ReqnrollLogin.Tests
+          pwsh bin/${{ env.CONFIGURATION }}/net9.0/playwright.ps1 install
+          cd ..
+
+      - name: Build solution
+        run: dotnet build -c ${{ env.CONFIGURATION }} --no-restore
+
+      - name: Run tests with coverage
+        run: dotnet test -c ${{ env.CONFIGURATION }} --no-build /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=./coverage.cobertura.xml
+        env:
+          HEADLESS: true
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: |
+            ReqnrollLogin.Tests/coverage.cobertura.xml
+          fail_ci_if_error: false
+          verbose: true
